@@ -283,6 +283,20 @@ class ReportTest(unittest.TestCase):
         self.assertIn("| start to first frame drawn (ms) | 90 | 48 | -47% |", text)
         self.assertIn("|---|---|---|---|", text)
 
+    def test_markdown_keeps_pipes_and_backslashes_in_the_run_name_cell(self):
+        runs = [("home|gpu-1", {"first frame": 90}), (r"home\|gpu-2", {"first frame": 80})]
+        text = report.report(runs, None, True, nav=False)
+        self.assertEqual(text.splitlines()[1], r"|  | home\|gpu-1 | home\\\|gpu-2 | median | range |")
+        self.assertEqual(text.splitlines()[2], "|---|---|---|---|---|")
+        self.assertIn("| start to first frame drawn (ms) | 90 | 80 | 85 | 80–90 |", text)
+
+    def test_plain_text_keeps_the_original_run_names(self):
+        runs = [("home|gpu-1", {"first frame": 90}), (r"home\|gpu-2", {"first frame": 80})]
+        text = report.report(runs, None, False, nav=False)
+        self.assertIn("home|gpu-1", text)
+        self.assertIn(r"home\|gpu-2", text)
+        self.assertIn("80–90", text)
+
     def test_metrics_no_run_has_are_left_out(self):
         text = report.report(self.RUNS, None, False, nav=False)
         self.assertNotIn("bindApplication", text)
@@ -514,6 +528,16 @@ class FilesTest(unittest.TestCase):
                 Path(tmp, f"home-{n}.pftrace").write_bytes(b"")
             self.assertEqual([os.path.basename(p) for p in report.expand([tmp])],
                              ["home-1.pftrace", "home-2.pftrace", "home-10.pftrace"])
+
+    def test_a_folder_name_with_glob_characters_is_read_as_itself(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, "tr[1]").mkdir()
+            Path(tmp, "tr[1]", "home-1.pftrace").write_bytes(b"")
+            folder = os.path.join(tmp, "tr[1]")
+            self.assertEqual([folder], [os.path.dirname(p) for p in report.expand([folder])])
+            Path(tmp, "tr1").mkdir()
+            Path(tmp, "tr1", "other-1.pftrace").write_bytes(b"")
+            self.assertEqual([os.path.join(folder, "home-1.pftrace")], report.expand([folder]))
 
     def test_scenario_comes_from_the_sidecar_then_the_name(self):
         with tempfile.TemporaryDirectory() as tmp:
