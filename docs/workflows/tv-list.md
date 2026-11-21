@@ -35,12 +35,14 @@
    `notes` the Notes cell in `examples/README.md`: one line of Markdown, links relative to `examples/`, `\|`
    for a pipe. Two things in it are read back: a package named in backticks with `kept`, `disabled` or
    `refused` straight after it is a claim about what the list does, and
-   `tests/test_example_readme_package_fates.py` holds it to the list - `kept` and `refused` have to be off
-   an active line, `disabled` on one (the stock launcher `launcher/build-and-install.sh` takes Home from is
-   the exception) - so a package left commented out is not `disabled` however the comment reads, and a
-   package the list still sends is not `kept`. The other is a package count ("19 packages"), which the same
-   test compares with the number of packages the list sends, so a line commented out of `debloat.txt` moves
-   the number in the row with it. Any other wording after the name claims nothing, which is
+   `tests/test_example_readme_package_fates.py` holds it to the lists the folder ships - `kept` and `refused`
+   have to be off an active line of every one of them, `disabled` on an active line of any (the stock launcher
+   `launcher/build-and-install.sh` takes Home from is the exception) - so a package left commented out is not
+   `disabled` however the comment reads, a package any list still sends is not `kept`, and a package a second
+   list turns off can be stated as `disabled`. The other is a package count ("19 packages"), which the same
+   test compares with the number of packages `debloat.txt` sends, so a line commented out of `debloat.txt` moves
+   the number in the row with it - a row that also counts a second list says which list it means. Any other
+   wording after the name claims nothing, which is
    how `notes` stays free prose. `readme_os` is the one optional key: it is the OS cell of the two-column
    table in `README.nl.md`,
    for a set whose row there should read shorter than the same set's row in `examples/README.md` - that table
@@ -56,22 +58,31 @@
    story two screens below the card. `tests/test_press_counts.py` reads the pair out of the sentence and holds it
    to the alt text beside it (`README.de.md states (TV models, brands) (380, 101) in its story sentence and its
    card states (387, 103)`), so they move in the same commit. The sentence is not only on those five pages:
-   `README.pt-BR.md`, `README.he.md` and `README.uz.md` carry the story paragraph without the card, so
-   `tools/gen_tables.py` writes nothing there and the same check holds their pair to `README.md`'s alt text in
-   the same words a card page's pair is held to - a regeneration that bumps the five pages above and stops
-   leaves those three red. A translation that copies the story paragraph joins them the day it lands. The brand
-   grid itself is hand-kept on one page:
+   `README.pt-BR.md`, `README.he.md`, `README.uz.md`, `README.fr.md` and `README.es.md` carry the story
+   paragraph without the card, so `tools/gen_tables.py` writes nothing there and the same check holds their
+   pair to `README.md`'s alt text in the same words a card page's pair is held to - a regeneration that bumps
+   the five pages above and stops leaves those five red. A translation that copies the story paragraph joins
+   them the day it lands.
+   The brand grid itself is hand-kept on one page:
    `README.he.md` carries neither the card nor the `tv-brands` markers, so `tools/gen_tables.py` cannot write
    it and `tests/test_readme_he_brand_block.py` reads its grid, its two-list line, its single-list names and
    its `<summary>` numbers against README.md's copy - a regeneration moves the Hebrew page with it, while a
    list PR, which touches only its own folder, leaves both pages where they were and stays green.
-6. A `README.md` for TV-specific notes and a `config.json` with the dock are welcome in the folder. Notes are
-   free prose; three things in a README are read back, two of them against the list beside it.
+6. A `README.md` for TV-specific notes and a `config.json` with the dock are welcome in the folder. So is a
+   picture, while a page shows it: a screenshot left beside the list that no page links is one a reader never
+   sees, and `tests/test_example_pictures_linked.py` names every one of them
+   (`examples/<folder>/home.jpg`), so it has to be shown by an image in the folder's own `README.md` or by a
+   `docs/devices/` note that displays it - otherwise screenshots belong in the pull request, not the tree. The
+   suffix has to be true as well: `tests/test_image_files.py` reads the first bytes of every image-named file,
+   so a PNG saved as base64 text is refused by name rather than drawing a broken picture on GitHub (two had
+   landed that way). A theme subfolder's `wallpapers/` is the exception to the first check, because the
+   launcher picks one picture out of that folder and no page names it.
+   Notes are free prose; three things in a README are read back, two of them against the list beside it.
    A whole theme may sit in a theme/ subfolder beside the list instead of a `config.json` at the folder's
    root: six folders do (`motorola-mt4310`, `nokia-streaming-box-8000`, `philips-google-tv-ta7`,
    `tivo-stream-4k`, `xiaomi-mi-box-s`, `xiaomi-mitv-afmu0`), a wallpaper and a wallpapers/ collection
    included, and the folder's own `README.md` is where the owner is told to edit it and push it with
-   `tools/theme.sh examples/philips-google-tv-ta7/theme`. Both checks that read a shipped `config.json`
+   `TV_HOST=<tv ip> tools/theme.sh examples/philips-google-tv-ta7/theme`. Both checks that read a shipped `config.json`
    (`tests/test_shipped_config_keys_are_read.py` and `tests/test_shipped_config_values.py`) walk
    `examples/` at any depth, so a key or a value in that subfolder is judged where it sits rather than
    skipped, and `tools/theme.sh` is handed the folder that holds the `config.json` - the subfolder, not
@@ -118,4 +129,8 @@ why in the header; keeping it enabled is preferred. `pm hide` or `pm block` need
 Edits to someone else's list are judgement calls, so say in the PR which TV you tested on and for how long. If the
 row should say something new, change the folder's `tv.json`, not the tables.
 
-Then run the tests: `python3 -m unittest discover -s tests -v`.
+Then run the tests with the checkout's venv: `tools/venv/bin/python -m unittest discover -s tests -v`.
+[`README.md`'s by-hand block](../../README.md) builds it, and it is where `tools/requirements.txt` puts the
+`adb_shell` the suite imports - under the system `python3` those checks skip and the run still says OK. The
+picture, card and wallpaper checks need Pillow as well: `tools/requirements-perf.txt` adds it, and without it
+they are reported as skips, not failures.
