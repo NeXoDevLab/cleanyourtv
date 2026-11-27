@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """The standard launcher numbers from traces recorded with tools/trace.py: per run, median and range.
 
-    tools/trace_report.py traces/before                       one set of runs
-    tools/trace_report.py traces/before --vs traces/after     before against after, with the change
-    tools/trace_report.py ... --markdown                      tables to paste into a pull request
+    tools/venv/bin/python -I tools/trace_report.py traces/before                       one set of runs
+    tools/venv/bin/python -I tools/trace_report.py traces/before --vs traces/after     before against after, with the change
+    tools/venv/bin/python -I tools/trace_report.py ... --markdown                      tables to paste into a pull request
 
 TRACES are .pftrace files or folders of them. Needs the optional `perfetto` package
 (tools/venv/bin/pip install -r tools/requirements-perf.txt). Its first run downloads Perfetto's query
@@ -19,7 +19,7 @@ inside that, and the frames drawn and deadlines missed in the 1.5 s after. For n
 frame times and missed deadlines over the whole recording.
 """
 import argparse
-import glob
+import fnmatch
 import json
 import math
 import os
@@ -167,10 +167,18 @@ def scenario_of(path):
 
 
 def expand(items):
+    """Expand folders in run order, refusing a read error instead of reporting a partial set."""
     paths = []
     for item in items:
         if os.path.isdir(item):
-            paths += sorted(glob.glob(os.path.join(item, "*.pftrace")), key=_run_order)
+            # glob() hides directory read errors as an empty match. With another readable input
+            # folder, that silently drops recordings and changes the report's median and comparison.
+            try:
+                with os.scandir(item) as entries:
+                    paths += sorted((entry.path for entry in entries if not entry.name.startswith(".")
+                                     and fnmatch.fnmatch(entry.name, "*.pftrace")), key=_run_order)
+            except OSError as e:
+                sys.exit(f"cannot read trace folder {item}: {e.strerror or e}. No trace was read.")
         else:
             paths.append(item)
     return paths
@@ -265,7 +273,8 @@ def measure(paths, package, open_trace):
             metrics = nav_metrics(q, package) if scenario_of(path) == "nav" else start_metrics(q, package)
         finally:
             close()
-        out.append((os.path.basename(path)[:-len(".pftrace")], metrics))
+        name = os.path.basename(path)
+        out.append((name[:-len(".pftrace")] if name.endswith(".pftrace") else name, metrics))
     return out
 
 
@@ -310,8 +319,12 @@ def compare(before, after, names, markdown):
 
 def render(head, rows, markdown):
     if markdown:
-        lines = ["| " + " | ".join(head) + " |", "|" + "---|" * len(head)]
-        return "\n".join(lines + ["| " + " | ".join(r) + " |" for r in rows])
+        def row(cells):
+            # Run names come from filenames: a pipe must stay inside its table cell.
+            escaped = [str(c).replace("\\", "\\\\").replace("|", "\\|") for c in cells]
+            return "| " + " | ".join(escaped) + " |"
+        lines = [row(head), "|" + "---|" * len(head)]
+        return "\n".join(lines + [row(r) for r in rows])
     widths = [max(len(str(r[i])) for r in [head] + rows) for i in range(len(head))]
     return "\n".join("  ".join(str(c).ljust(w) for c, w in zip(r, widths)).rstrip() for r in [head] + rows)
 
@@ -348,6 +361,12 @@ def parse(argv):
 
 
 def main(argv=None):
+    # Run names and the report's range separators may not fit the console's code page.
+    # A completed measurement must still print, as in flamechart.py and screendiff.py.
+    try:
+        sys.stdout.reconfigure(errors="replace")
+    except (AttributeError, ValueError):
+        pass
     args = parse(sys.argv[1:] if argv is None else argv)
     sets = [expand(args.traces)] + ([expand(args.vs)] if args.vs else [])
     for paths in sets:
