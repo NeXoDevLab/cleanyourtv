@@ -48,6 +48,9 @@ RECIPE = ROOT / "docs" / "workflows" / "translation.md"
 LANG_ROW = {
     "README.md": "languages",
     "README.de.md": "Sprachen",
+    "README.el.md": "γλώσσες",
+    "README.es.md": "idiomas",
+    "README.fr.md": "langues",
     "README.he.md": "שפות",
     "README.nl.md": "talen",
     "README.pt-BR.md": "idiomas",

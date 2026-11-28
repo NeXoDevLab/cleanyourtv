@@ -10,6 +10,9 @@
 # list plus an optional stock launcher package - no list word at all, an empty one, or a dash-led word
 # that is a flag somewhere else - so nothing was sent to the TV.
 set -euo pipefail
+# The Home read-back below checks the component with ASCII ranges such as [A-Za-z]; in a Turkish locale
+# GNU grep leaves i and I out of them, so a Home with an i in its name went unchecked. Match bytes.
+export LC_ALL=C
 LIST="${1:-}"
 if [ -z "$LIST" ]; then
   echo "restore.sh takes a debloat list: pass the same one you ran disable.sh with. Nothing was sent to the TV." >&2
@@ -54,7 +57,8 @@ fi
 # Resolve the list against the caller's directory before moving into the repo. Git Bash's pwd says
 # /c/Users/..., which the Windows Python cannot open with MSYS_NO_PATHCONV=1 set; pwd -W gives
 # C:/Users/..., the same path (and so the same record) as the PowerShell scripts.
-# A folder that is not there keeps the path as typed. A list path one folder short - the reader typed
+# A folder that is not there keeps the path as typed, relative to where the script was run (so the
+# checkout's own file of that name is not read instead). A list path one folder short - the reader typed
 # examples/my-tv where the folder is examples/my-tv-android-11 - used to end right here: bash printed
 # "cd: examples/my-tv: No such file or directory" with this script's own line number, named a folder
 # where the reader had typed a list, and exited 1, while recovery.py's "could not read <list> (No such
@@ -63,6 +67,8 @@ fi
 # the same; the PowerShell twin's Resolve-Path already names the list.
 if LIST_DIR="$(cd "$(dirname "$LIST")" 2>/dev/null && { pwd -W 2>/dev/null || pwd; })"; then
   LIST="$LIST_DIR/$(basename "$LIST")"
+else
+  case "$LIST" in /* | [A-Za-z]:/*) ;; *) LIST="$(pwd -W 2>/dev/null || pwd)/$LIST" ;; esac
 fi
 cd "$(dirname "$0")/.."
 STOCK="${2:-com.google.android.tvlauncher}"
